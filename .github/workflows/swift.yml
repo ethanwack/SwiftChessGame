@@ -15,6 +15,18 @@ jobs:
         - name: Checkout
           uses: actions/checkout@v4
 
+        - name: Gather CI diagnostics
+          run: |
+            echo "--- Xcode version ---"
+            xcodebuild -version || true
+            echo "\n--- Xcodebuild list (projects/workspaces) ---"
+            ls -la || true
+            xcodebuild -list -project ChessGame.xcodeproj || true
+            echo "\n--- Available simulators ---"
+            xcrun simctl list devices || true
+            echo "\n--- Swift package resolve ---"
+            swift package resolve --allow-writing-to-package-directory || true
+
         - name: Create dummy GoogleService-Info.plist for CI
           run: |
             cat > GoogleService-Info.plist <<EOF
