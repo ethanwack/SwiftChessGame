@@ -1,0 +1,29 @@
+# Xcode
+.DS_Store
+xcuserdata/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+**/xcshareddata/WorkspaceSettings.xcsettings
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+*.xcodeproj
+.swiftpm
+
+# Firebase
+GoogleService-Info.plist
+
+# IDE
+.idea/
+.vscode/
+
+# System files
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
