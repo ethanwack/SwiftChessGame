@@ -65,12 +65,10 @@ jobs:
             SCHEME="ChessGame"
 
             if [ -f "$WORKSPACE" ]; then
-              xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM_DEVICE" \\
-                CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build-for-testing
+              xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM_DEVICE" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build-for-testing
             else
               PROJECT="ChessGame.xcodeproj"
-              xcodebuild -project "$PROJECT" -scheme "$SCHEME" -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM_DEVICE" \\
-                CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build-for-testing
+              xcodebuild -project "$PROJECT" -scheme "$SCHEME" -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM_DEVICE" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build-for-testing
             fi
 
         - name: Run tests (if any)
@@ -79,10 +77,8 @@ jobs:
             WORKSPACE="ChessGame.xcworkspace"
             SCHEME="ChessGame"
             if [ -f "$WORKSPACE" ]; then
-              xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM_DEVICE" \\
-                CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
+              xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM_DEVICE" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
             else
               PROJECT="ChessGame.xcodeproj"
-              xcodebuild -project "$PROJECT" -scheme "$SCHEME" -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM_DEVICE" \\
-                CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
+              xcodebuild -project "$PROJECT" -scheme "$SCHEME" -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM_DEVICE" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
             fi
