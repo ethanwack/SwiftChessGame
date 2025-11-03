@@ -4,22 +4,45 @@ import FirebaseAuth
 
 struct GameLobbyView: View {
     @EnvironmentObject var authManager: AuthenticationManager
+    @EnvironmentObject var appSettings: AppSettings
     @StateObject private var multiplayerManager = MultiplayerManager()
     @State private var showingCreateGame = false
     @State private var availableGames: [GameData] = []
     @State private var selectedGameMode: GameMode = .vsAI
+    @State private var showOnlineSettings = false
+    
+    var availableGameModes: [GameMode] {
+        appSettings.isOnlineEnabled ? GameMode.allCases : GameMode.allCases.filter { !$0.requiresOnline }
+    }
     
     var body: some View {
         NavigationView {
             VStack {
                 // Game Mode Picker
                 Picker("Game Mode", selection: $selectedGameMode) {
-                    Text("vs Computer").tag(GameMode.vsAI)
-                    Text("Local 2-Player").tag(GameMode.localMultiplayer)
-                    Text("Online Multiplayer").tag(GameMode.onlineMultiplayer)
+                    ForEach(availableGameModes, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .padding()
+                
+                // Online Mode Toggle
+                HStack {
+                    Toggle("Enable Online Play", isOn: $appSettings.isOnlineEnabled)
+                        .onChange(of: appSettings.isOnlineEnabled) { newValue in
+                            if !newValue && selectedGameMode == .onlineMultiplayer {
+                                selectedGameMode = .vsAI
+                            }
+                        }
+                    
+                    if appSettings.isOnlineEnabled {
+                        Button(action: { showOnlineSettings = true }) {
+                            Image(systemName: "gear")
+                        }
+                    }
+                }
+                .padding(.horizontal)
                 
                 if selectedGameMode == .onlineMultiplayer {
                     // Online Multiplayer View

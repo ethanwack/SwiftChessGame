@@ -11,38 +11,38 @@ import FirebaseCore
 @main
 struct ChessGameApp: App {
     @StateObject private var authManager = AuthenticationManager()
-    @State private var showError = false
-    @State private var errorMessage = ""
+    @StateObject private var appSettings = AppSettings.shared
     
     init() {
-        do {
-            try ConfigurationManager.shared.setupFirebase()
-            
-            #if os(macOS)
-            ConfigurationManager.shared.configureForMacOS()
-            #elseif os(iOS)
-            ConfigurationManager.shared.configureForIOS()
-            #endif
-        } catch {
-            print("Failed to configure Firebase: \(error)")
-            // We'll show this in the UI via showError
+        // Only initialize Firebase if online play is enabled
+        if AppSettings.shared.isOnlineEnabled {
+            do {
+                try ConfigurationManager.shared.setupFirebase()
+                
+                #if os(macOS)
+                ConfigurationManager.shared.configureForMacOS()
+                #elseif os(iOS)
+                ConfigurationManager.shared.configureForIOS()
+                #endif
+            } catch {
+                print("Failed to configure Firebase: \(error)")
+                // Disable online features if Firebase setup fails
+                AppSettings.shared.isOnlineEnabled = false
+            }
         }
     }
     
     var body: some Scene {
         WindowGroup {
-            if authManager.isAuthenticated {
+            if !appSettings.isOnlineEnabled || authManager.isAuthenticated {
                 AdaptiveGameLobby()
                     .environmentObject(authManager)
+                    .environmentObject(appSettings)
             } else {
                 LoginView()
                     .environmentObject(authManager)
+                    .environmentObject(appSettings)
             }
-        }
-        .alert("Configuration Error", isPresented: $showError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(errorMessage)
         }
     }
 }
