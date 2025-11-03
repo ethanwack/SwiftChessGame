@@ -30,6 +30,9 @@ class TranspositionTable {
 
 struct ContentView: View {
     @StateObject private var board = ChessBoard()
+    @EnvironmentObject var multiplayerManager: MultiplayerManager
+    @EnvironmentObject var authManager: AuthenticationManager
+    
     @State private var selectedPiece: ChessPiece?
     @State private var validMoves = [(Int, Int)]()
     @State private var currentTurn: PieceColor = .white
@@ -48,6 +51,20 @@ struct ContentView: View {
     @State private var blackTimeRemaining: TimeInterval = 5 * 60
     @State private var timer: Timer?
     @State private var activeTimerColor: PieceColor?
+    
+    private var isOnlineGame: Bool {
+        multiplayerManager.gameData != nil
+    }
+    
+    private var isMyTurn: Bool {
+        guard let userId = authManager.user?.uid,
+              let gameData = multiplayerManager.gameData else {
+            return true // Local game
+        }
+        
+        return (gameData.currentTurn == .white && gameData.whitePlayerID == userId) ||
+               (gameData.currentTurn == .black && gameData.blackPlayerID == userId)
+    }
 
     @State private var showAlert = false
     @State private var alertMessage = ""
