@@ -17,20 +17,20 @@ struct GameMove: Codable {
     let pieceType: PieceType
 }
 
-struct Position: Codable {
+struct Position: Codable, Equatable {
     let row: Int
     let col: Int
 }
 
 struct GameData: Codable {
-    var id: String = "" // Firestore document ID
+    var id: String = ""
     var boardPieces: [ChessPiece] = []
     var currentTurn: PieceColor = .white
     var whitePlayerID: String
     var blackPlayerID: String?
     var whiteTimeRemaining: TimeInterval = 300
     var blackTimeRemaining: TimeInterval = 300
-    var gameStatus: String = "waiting" // "waiting", "active", "ended"
+    var gameStatus: String = "waiting"
     var lastMove: GameMove?
     var createdAt: Date = Date()
 }
@@ -50,19 +50,24 @@ class MultiplayerManager: ObservableObject {
             return
         }
         
+        let initialBoard = ChessBoard().pieces
         let newGame = GameData(
-            boardPieces: ChessBoard().pieces,
+            boardPieces: initialBoard,
+            currentTurn: .white,
             whitePlayerID: currentUser.uid,
+            blackPlayerID: nil,
             whiteTimeRemaining: timeControl,
-            blackTimeRemaining: timeControl
+            blackTimeRemaining: timeControl,
+            gameStatus: "waiting"
         )
         
         do {
             let docRef = try db.collection("games").addDocument(from: newGame)
             listenToGame(id: docRef.documentID)
             isInGame = true
+            print("Game created with ID: \(docRef.documentID)")
         } catch {
-            print("Error creating game: \(error)")
+            print("Failed to create game: \(error)")
         }
     }
     
@@ -112,9 +117,13 @@ class MultiplayerManager: ObservableObject {
     
     // MARK: - Fetch available games
     func fetchAvailableGames(completion: @escaping ([GameData]) -> Void) {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            completion([])
+            return
+        }
+        
         db.collection("games")
             .whereField("gameStatus", isEqualTo: "waiting")
-            .whereField("whitePlayerID", isNotEqualTo: Auth.auth().currentUser?.uid ?? "")
             .order(by: "createdAt", descending: true)
             .getDocuments { snapshot, error in
                 if let error = error {
@@ -123,7 +132,12 @@ class MultiplayerManager: ObservableObject {
                     return
                 }
                 
-                let games = snapshot?.documents.compactMap { try? $0.data(as: GameData.self) } ?? []
+                let games = snapshot?.documents.compactMap { doc -> GameData? in
+                    guard var game = try? doc.data(as: GameData.self) else { return nil }
+                    game.id = doc.documentID
+                    // Filter out games created by current user
+                    return game.whitePlayerID != currentUserId ? game : nil
+                } ?? []
                 completion(games)
             }
     }
@@ -140,7 +154,8 @@ class MultiplayerManager: ObservableObject {
                 }
                 
                 do {
-                    let game = try document.data(as: GameData.self)
+                    var game = try document.data(as: GameData.self)
+                    game.id = document.documentID
                     DispatchQueue.main.async {
                         self?.gameData = game
                     }
@@ -175,13 +190,16 @@ class MultiplayerManager: ObservableObject {
             
             guard var game = try? gameDoc.data(as: GameData.self) else { return nil }
             
-            // Update the game state
-            if let pieceIndex = game.boardPieces.firstIndex(where: { $0.position == (from.row, from.col) }) {
+            if let pieceIndex = game.boardPieces.firstIndex(where: { 
+                $0.position.0 == from.row && $0.position.1 == from.col 
+            }) {
                 game.boardPieces[pieceIndex].position = (to.row, to.col)
                 game.boardPieces[pieceIndex].hasMoved = true
                 
-                // Remove captured piece if any
-                if let capturedIndex = game.boardPieces.firstIndex(where: { $0.position == (to.row, to.col) && $0.id != game.boardPieces[pieceIndex].id }) {
+                if let capturedIndex = game.boardPieces.firstIndex(where: { 
+                    $0.position.0 == to.row && $0.position.1 == to.col && 
+                    $0.id != game.boardPieces[pieceIndex].id 
+                }) {
                     game.boardPieces.remove(at: capturedIndex)
                 }
             }
@@ -223,96 +241,4 @@ class MultiplayerManager: ObservableObject {
     deinit {
         listener?.remove()
     }
-
-        let initialBoard = ChessBoard().pieces // Make sure your ChessBoard model's pieces are Codable
-        let newGame = GameData(
-            boardPieces: initialBoard,
-            currentTurn: .white,
-            whitePlayerID: currentUser.uid,
-            blackPlayerID: nil,
-            whiteTimeRemaining: 300,
-            blackTimeRemaining: 300,
-            gameStatus: "waiting"
-        )
-
-        do {
-            let docRef = try db.collection("games").addDocument(from: newGame)
-            self.listenToGame(gameID: docRef.documentID)
-            print("Game created with ID: \(docRef.documentID)")
-        } catch {
-            print("Failed to create game: \(error)")
-        }
-    }
-
-    // MARK: - Join existing game as black player
-    func joinGame(gameID: String) {
-        guard let currentUser = Auth.auth().currentUser else {
-            print("User not logged in")
-            return
-        }
-
-        let gameRef = db.collection("games").document(gameID)
-
-        gameRef.getDocument { snapshot, error in
-            guard let snapshot = snapshot, snapshot.exists else {
-                print("Game does not exist")
-                return
-            }
-            do {
-                var game = try snapshot.data(as: GameData.self)
-                if game.blackPlayerID == nil {
-                    game.blackPlayerID = currentUser.uid
-                    game.gameStatus = "active"
-                    try gameRef.setData(from: game)
-                    self.listenToGame(gameID: gameID)
-                } else {
-                    print("Game already has two players")
-                }
-            } catch {
-                print("Error joining game: \(error)")
-            }
-        }
-    }
-
-    // MARK: - Listen for updates to game document
-    func listenToGame(gameID: String) {
-        listener?.remove()
-
-        listener = db.collection("games").document(gameID).addSnapshotListener { [weak self] snapshot, error in
-            guard let data = snapshot?.data() else { return }
-            do {
-                let game = try snapshot?.data(as: GameData.self)
-                DispatchQueue.main.async {
-                    self?.gameData = game
-                }
-            } catch {
-                print("Error decoding game data: \(error)")
-            }
-        }
-    }
-
-    // MARK: - Send move to Firestore
-    func makeMove(newBoardPieces: [ChessPiece], currentTurn: PieceColor, whiteTime: TimeInterval, blackTime: TimeInterval, lastMove: GameMove?) {
-        guard let gameID = gameData?.id else { return }
-        let gameRef = db.collection("games").document(gameID)
-
-        // Update Firestore with new state
-        gameRef.updateData([
-            "boardPieces": try! Firestore.Encoder().encode(newBoardPieces),
-            "currentTurn": currentTurn.rawValue,
-            "whiteTimeRemaining": whiteTime,
-            "blackTimeRemaining": blackTime,
-            "lastMove": lastMove != nil ? try! Firestore.Encoder().encode(lastMove) : NSNull()
-        ]) { error in
-            if let error = error {
-                print("Error updating move: \(error)")
-            }
-        }
-    }
-
-    // MARK: - Cleanup
-    func stopListening() {
-        listener?.remove()
-    }
 }
-

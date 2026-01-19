@@ -14,6 +14,39 @@ struct ChessPiece: Identifiable, Codable {
     var color: PieceColor
     var position: (Int, Int)
     var hasMoved = false
+    
+    // Custom Codable implementation for tuple
+    enum CodingKeys: String, CodingKey {
+        case id, type, color, positionRow, positionCol, hasMoved
+    }
+    
+    init(type: PieceType, color: PieceColor, position: (Int, Int)) {
+        self.type = type
+        self.color = color
+        self.position = position
+        self.hasMoved = false
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        type = try container.decode(PieceType.self, forKey: .type)
+        color = try container.decode(PieceColor.self, forKey: .color)
+        let row = try container.decode(Int.self, forKey: .positionRow)
+        let col = try container.decode(Int.self, forKey: .positionCol)
+        position = (row, col)
+        hasMoved = try container.decode(Bool.self, forKey: .hasMoved)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(type, forKey: .type)
+        try container.encode(color, forKey: .color)
+        try container.encode(position.0, forKey: .positionRow)
+        try container.encode(position.1, forKey: .positionCol)
+        try container.encode(hasMoved, forKey: .hasMoved)
+    }
 
     func copy() -> ChessPiece {
         var new = ChessPiece(type: type, color: color, position: position)
@@ -25,9 +58,23 @@ struct ChessPiece: Identifiable, Codable {
 
 class ChessBoard: ObservableObject, Codable {
     @Published var pieces: [ChessPiece] = []
+    
+    enum CodingKeys: String, CodingKey {
+        case pieces
+    }
 
     init() {
         resetBoard()
+    }
+    
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        pieces = try container.decode([ChessPiece].self, forKey: .pieces)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(pieces, forKey: .pieces)
     }
 
     func resetBoard() {
@@ -98,7 +145,7 @@ func calculateValidMoves(for piece: ChessPiece, on board: ChessBoard) -> [(Int, 
         let dir = piece.color == .white ? -1 : 1
         let startRow = piece.color == .white ? 6 : 1
         let next = (row + dir, col)
-        if board.piece(at: next) == nil {
+        if isInBounds(next) && board.piece(at: next) == nil {
             moves.append(next)
             if row == startRow && board.piece(at: (row + 2 * dir, col)) == nil {
                 moves.append((row + 2 * dir, col))
@@ -107,7 +154,7 @@ func calculateValidMoves(for piece: ChessPiece, on board: ChessBoard) -> [(Int, 
 
         for dx in [-1, 1] {
             let diag = (row + dir, col + dx)
-            if let target = board.piece(at: diag), target.color != piece.color {
+            if isInBounds(diag), let target = board.piece(at: diag), target.color != piece.color {
                 moves.append(diag)
             }
         }
@@ -146,6 +193,58 @@ func calculateValidMoves(for piece: ChessPiece, on board: ChessBoard) -> [(Int, 
     return moves
 }
 
+// MARK: - Game State Checking
+
+func isKingInCheck(_ color: PieceColor, on board: ChessBoard) -> Bool {
+    guard let king = board.pieces.first(where: { $0.color == color && $0.type == .king }) else {
+        return false
+    }
+    
+    for piece in board.pieces where piece.color != color {
+        let moves = calculateValidMoves(for: piece, on: board)
+        if moves.contains(where: { $0 == king.position }) {
+            return true
+        }
+    }
+    return false
+}
+
+func isKingInCheckmate(_ color: PieceColor, on board: ChessBoard) -> Bool {
+    guard isKingInCheck(color, on: board) else { return false }
+    
+    for piece in board.pieces where piece.color == color {
+        let moves = calculateValidMoves(for: piece, on: board)
+        for move in moves {
+            let testBoard = board.deepCopy()
+            if let testPiece = testBoard.piece(at: piece.position) {
+                testBoard.applyMove(piece: testPiece, to: move)
+                if !isKingInCheck(color, on: testBoard) {
+                    return false
+                }
+            }
+        }
+    }
+    return true
+}
+
+func isStalemate(_ color: PieceColor, on board: ChessBoard) -> Bool {
+    guard !isKingInCheck(color, on: board) else { return false }
+    
+    for piece in board.pieces where piece.color == color {
+        let moves = calculateValidMoves(for: piece, on: board)
+        for move in moves {
+            let testBoard = board.deepCopy()
+            if let testPiece = testBoard.piece(at: piece.position) {
+                testBoard.applyMove(piece: testPiece, to: move)
+                if !isKingInCheck(color, on: testBoard) {
+                    return false
+                }
+            }
+        }
+    }
+    return true
+}
+
 // MARK: - Evaluation
 
 func evaluate(board: ChessBoard, for color: PieceColor) -> Int {
@@ -159,4 +258,25 @@ func evaluate(board: ChessBoard, for color: PieceColor) -> Int {
         score += (piece.color == color ? value : -value)
     }
     return score
+}
+
+enum AIDifficulty: String, CaseIterable, Identifiable {
+    case easy = "Easy"
+    case medium = "Medium"
+    case hard = "Hard"
+    
+    var id: String { rawValue }
+    
+    var depth: Int {
+        switch self {
+        case .easy: return 1
+        case .medium: return 2
+        case .hard: return 3
+        }
+    }
+}
+
+enum GameMode: String, CaseIterable {
+    case vsPlayer = "Player vs Player"
+    case vsAI = "Player vs AI"
 }
