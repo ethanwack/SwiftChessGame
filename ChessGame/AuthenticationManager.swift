@@ -10,12 +10,13 @@ class AuthenticationManager: ObservableObject {
     }
     
     struct LocalAuth {
-        static let auth = LocalAuth()
+        static var auth = LocalAuth()
         var currentUser: LocalUser? = nil
         
         func signIn(withEmail email: String, password: String, completion: @escaping (AuthResult?, Error?) -> Void) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 let user = LocalUser(uid: UUID().uuidString, email: email)
+                LocalAuth.auth.currentUser = user
                 completion(AuthResult(user: user), nil)
             }
         }
@@ -23,12 +24,21 @@ class AuthenticationManager: ObservableObject {
         func createUser(withEmail email: String, password: String, completion: @escaping (AuthResult?, Error?) -> Void) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 let user = LocalUser(uid: UUID().uuidString, email: email)
+                LocalAuth.auth.currentUser = user
                 completion(AuthResult(user: user), nil)
             }
         }
         
         func signOut() throws {
-            currentUser = nil
+            LocalAuth.auth.currentUser = nil
+        }
+        
+        func signInAnonymously(completion: @escaping (AuthResult?, Error?) -> Void) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let user = LocalUser(uid: UUID().uuidString, email: nil)
+                LocalAuth.auth.currentUser = user
+                completion(AuthResult(user: user), nil)
+            }
         }
     }
     
@@ -82,7 +92,7 @@ class AuthenticationManager: ObservableObject {
     }
     
     func signInAnonymously() {
-        Auth.auth().signInAnonymously { [weak self] result, error in
+        LocalAuth.auth.signInAnonymously { [weak self] (result: AuthResult?, error: Error?) in
             DispatchQueue.main.async {
                 if let error = error {
                     self?.errorMessage = error.localizedDescription

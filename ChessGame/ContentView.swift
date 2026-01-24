@@ -136,7 +136,7 @@ struct ContentView: View {
     func squareView(row: Int, col: Int) -> some View {
         let isLight = (row + col) % 2 == 0
         let piece = board.piece(at: (row, col))
-        let isSelected = selectedPiece?.position == (row, col)
+        let isSelected = selectedPiece != nil && selectedPiece!.position == (row, col)
         let isValidMove = validMoves.contains(where: { $0 == (row, col) })
         
         return ZStack {

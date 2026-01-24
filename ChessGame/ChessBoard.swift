@@ -43,14 +43,14 @@ class ChessBoard: ObservableObject {
         if piece.type == .king, abs(destination.1 - piece.position.1) == 2 {
             let row = piece.position.0
             if destination.1 > piece.position.1 {
-                if let rook = piece(at: (row, 7)) {
-                    rook.position = (row, 5)
-                    rook.hasMoved = true
+                if let rookIndex = pieces.firstIndex(where: { $0.position == (row, 7) }) {
+                    pieces[rookIndex].position = (row, 5)
+                    pieces[rookIndex].hasMoved = true
                 }
             } else {
-                if let rook = piece(at: (row, 0)) {
-                    rook.position = (row, 3)
-                    rook.hasMoved = true
+                if let rookIndex = pieces.firstIndex(where: { $0.position == (row, 0) }) {
+                    pieces[rookIndex].position = (row, 3)
+                    pieces[rookIndex].hasMoved = true
                 }
             }
         }
@@ -58,8 +58,14 @@ class ChessBoard: ObservableObject {
         // Capture
         pieces.removeAll { $0.position == destination && $0.color != piece.color }
 
-        piece.position = destination
-        piece.hasMoved = true
+        if let pieceIndex = pieces.firstIndex(where: { $0.id == piece.id }) {
+            pieces[pieceIndex].position = destination
+            pieces[pieceIndex].hasMoved = true
+        }
+    }
+    
+    func applyMove(piece: ChessPiece, to destination: (Int, Int)) {
+        move(piece: piece, to: destination)
     }
 
     func slidingMoves(from position: (Int, Int), directions: [(Int, Int)], for piece: ChessPiece) -> [(Int, Int)] {
@@ -71,7 +77,7 @@ class ChessBoard: ObservableObject {
                 let newPos = (position.0 + dir.0 * step, position.1 + dir.1 * step)
                 if !isOnBoard(newPos) { break }
 
-                if let blocking = piece(at: newPos) {
+                if let blocking = self.piece(at: newPos) {
                     if blocking.color != piece.color {
                         moves.append(newPos)
                     }
@@ -97,10 +103,12 @@ class ChessBoard: ObservableObject {
     }
 
     func isSquareAttacked(_ pos: (Int, Int), by attackerColor: PieceColor) -> Bool {
-        for attacker in pieces where attacker.color == attackerColor {
-            let moves = pseudoLegalMoves(for: attacker)
-            if moves.contains(pos) {
-                return true
+        for attacker in pieces {
+            if attacker.color == attackerColor {
+                let moves = pseudoLegalMoves(for: attacker)
+                if moves.contains(where: { $0 == pos }) {
+                    return true
+                }
             }
         }
         return false
@@ -152,7 +160,7 @@ class ChessBoard: ObservableObject {
 
         func add(_ r: Int, _ c: Int) {
             if isOnBoard((r, c)) {
-                if let target = piece(at: (r, c)) {
+                if let target = self.piece(at: (r, c)) {
                     if target.color != piece.color {
                         moves.append((r, c))
                     }
@@ -165,16 +173,16 @@ class ChessBoard: ObservableObject {
         switch piece.type {
         case .pawn:
             let one = (pos.0 + dir, pos.1)
-            if piece(at: one) == nil { moves.append(one) }
+            if self.piece(at: one) == nil { moves.append(one) }
 
             let two = (pos.0 + 2*dir, pos.1)
-            if pos.0 == (piece.color == .white ? 6 : 1), piece(at: one) == nil, piece(at: two) == nil {
+            if pos.0 == (piece.color == .white ? 6 : 1), self.piece(at: one) == nil, self.piece(at: two) == nil {
                 moves.append(two)
             }
 
             for dc in [-1, 1] {
                 let cap = (pos.0 + dir, pos.1 + dc)
-                if let enemy = piece(at: cap), enemy.color != piece.color {
+                if let enemy = self.piece(at: cap), enemy.color != piece.color {
                     moves.append(cap)
                 }
             }
@@ -209,6 +217,10 @@ class ChessBoard: ObservableObject {
         let newBoard = ChessBoard()
         newBoard.pieces = self.pieces.map { $0.copy() }
         return newBoard
+    }
+    
+    func deepCopy() -> ChessBoard {
+        return copy()
     }
 }
 
