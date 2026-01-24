@@ -56,57 +56,6 @@ struct ChessPiece: Identifiable, Codable {
     }
 }
 
-class ChessBoard: ObservableObject, Codable {
-    @Published var pieces: [ChessPiece] = []
-    
-    enum CodingKeys: String, CodingKey {
-        case pieces
-    }
-
-    init() {
-        resetBoard()
-    }
-    
-    required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        pieces = try container.decode([ChessPiece].self, forKey: .pieces)
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(pieces, forKey: .pieces)
-    }
-
-    func resetBoard() {
-        pieces = []
-        let backRow: [PieceType] = [.rook, .knight, .bishop, .queen, .king, .bishop, .knight, .rook]
-        for i in 0..<8 {
-            pieces.append(ChessPiece(type: .pawn, color: .white, position: (6, i)))
-            pieces.append(ChessPiece(type: .pawn, color: .black, position: (1, i)))
-            pieces.append(ChessPiece(type: backRow[i], color: .white, position: (7, i)))
-            pieces.append(ChessPiece(type: backRow[i], color: .black, position: (0, i)))
-        }
-    }
-
-    func deepCopy() -> ChessBoard {
-        let copy = ChessBoard()
-        copy.pieces = pieces.map { $0.copy() }
-        return copy
-    }
-
-    func piece(at pos: (Int, Int)) -> ChessPiece? {
-        pieces.first(where: { $0.position == pos })
-    }
-
-    func applyMove(piece: ChessPiece, to dest: (Int, Int)) {
-        pieces.removeAll { $0.position == dest && $0.color != piece.color }
-        if let index = pieces.firstIndex(where: { $0.id == piece.id }) {
-            pieces[index].position = dest
-            pieces[index].hasMoved = true
-        }
-    }
-}
-
 // MARK: - Move Logic
 
 func isInBounds(_ pos: (Int, Int)) -> Bool {
@@ -279,4 +228,9 @@ enum AIDifficulty: String, CaseIterable, Identifiable {
 enum GameMode: String, CaseIterable {
     case vsPlayer = "Player vs Player"
     case vsAI = "Player vs AI"
+    case onlineMultiplayer = "Online Multiplayer"
+    
+    var requiresOnline: Bool {
+        self == .onlineMultiplayer
+    }
 }

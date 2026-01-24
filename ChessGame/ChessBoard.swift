@@ -6,6 +6,12 @@
 //
 import Foundation
 
+// MARK: - Helper Functions
+
+func opposite(_ color: PieceColor) -> PieceColor {
+    color == .white ? .black : .white
+}
+
 class ChessBoard: ObservableObject {
     @Published var pieces: [ChessPiece] = []
 

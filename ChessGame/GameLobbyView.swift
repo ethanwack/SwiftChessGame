@@ -1,6 +1,6 @@
 import SwiftUI
-import FirebaseFirestore
-import FirebaseAuth
+// import FirebaseFirestore
+// import FirebaseAuth
 
 struct GameLobbyView: View {
     @EnvironmentObject var authManager: AuthenticationManager
