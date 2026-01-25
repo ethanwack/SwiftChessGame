@@ -34,7 +34,7 @@ struct ContentView: View {
     @State private var selectedPiece: ChessPiece?
     @State private var validMoves = [(Int, Int)]()
     @State private var currentTurn: PieceColor = .white
-    @State private var gameMode: GameMode = .vsAI
+    @State private var gameMode: GameMode = .vsPlayer
     @State private var difficulty: AIDifficulty = .medium
     @State private var aiPlaysAs: PieceColor = .black
 
@@ -299,8 +299,9 @@ struct ContentView: View {
             // Piece display
             if let p = piece {
                 Text(pieceSymbol(p))
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.system(size: 28, weight: .bold))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.5)
             }
         }
         .aspectRatio(1, contentMode: .fit)
