@@ -120,24 +120,19 @@ struct ContentView: View {
                 .padding(.horizontal, 8)
                 .font(.caption)
                 
-                // LARGE Chess board - fixed size
-                GeometryReader { geometry in
-                    let boardSize = min(geometry.size.width - 16, geometry.size.height - 100)
-                    
-                    VStack(spacing: 0) {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 8), spacing: 0) {
-                            ForEach(0..<64, id: \.self) { idx in
-                                let row = idx / 8
-                                let col = idx % 8
-                                squareView(row: row, col: col)
-                            }
+                // LARGE Chess board - responsive
+                VStack(spacing: 0) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 8), spacing: 0) {
+                        ForEach(0..<64, id: \.self) { idx in
+                            let row = idx / 8
+                            let col = idx % 8
+                            squareView(row: row, col: col)
                         }
-                        .frame(width: boardSize, height: boardSize)
-                        .border(Color.black, width: 3)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .aspectRatio(1, contentMode: .fit)
+                    .border(Color.black, width: 3)
                 }
-                .frame(maxHeight: .infinity)
+                .padding(4)
                 
                 // Minimal captured pieces
                 VStack(spacing: 4) {
