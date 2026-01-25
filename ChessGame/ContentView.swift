@@ -57,74 +57,72 @@ struct ContentView: View {
         ZStack {
             Color(UIColor.systemBackground).ignoresSafeArea()
             
-            VStack(spacing: 12) {
-                // Top status bar
-                VStack(spacing: 8) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("White")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Text(formatTime(whiteTimeRemaining))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(currentTurn == .white ? .white : .gray)
-                                .frame(width: 60, alignment: .leading)
-                        }
-                        .padding(8)
-                        .background(currentTurn == .white ? Color.black : Color(UIColor.secondarySystemBackground))
-                        .cornerRadius(8)
-                        
-                        Spacer()
-                        
-                        Text(currentTurn == .white ? "White's Turn" : "Black's Turn")
-                            .font(.headline)
+            VStack(spacing: 8) {
+                // Minimal top controls
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("White")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                        Text(formatTime(whiteTimeRemaining))
+                            .font(.body)
                             .fontWeight(.bold)
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("Black")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Text(formatTime(blackTimeRemaining))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(currentTurn == .black ? .white : .gray)
-                                .frame(width: 60, alignment: .trailing)
-                        }
-                        .padding(8)
-                        .background(currentTurn == .black ? Color.black : Color(UIColor.secondarySystemBackground))
-                        .cornerRadius(8)
+                            .foregroundColor(currentTurn == .white ? .white : .gray)
                     }
-                    .padding(.horizontal)
+                    .padding(6)
+                    .background(currentTurn == .white ? Color.black : Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(6)
                     
-                    // Mode selector
-                    HStack(spacing: 12) {
-                        Picker("Mode", selection: $gameMode) {
-                            Text("PvP").tag(GameMode.vsPlayer)
-                            Text("vs AI").tag(GameMode.vsAI)
+                    Spacer()
+                    
+                    Text(currentTurn == .white ? "⚪" : "⚫")
+                        .font(.title)
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Black")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                        Text(formatTime(blackTimeRemaining))
+                            .font(.body)
+                            .fontWeight(.bold)
+                            .foregroundColor(currentTurn == .black ? .white : .gray)
+                    }
+                    .padding(6)
+                    .background(currentTurn == .black ? Color.black : Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(6)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                
+                // Game mode selector - compact
+                HStack(spacing: 8) {
+                    Picker("", selection: $gameMode) {
+                        Text("PvP").tag(GameMode.vsPlayer)
+                        Text("AI").tag(GameMode.vsAI)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(maxWidth: 100)
+                    
+                    if gameMode == .vsAI {
+                        Picker("", selection: $difficulty) {
+                            Text("Easy").tag(AIDifficulty.easy)
+                            Text("Med").tag(AIDifficulty.medium)
+                            Text("Hard").tag(AIDifficulty.hard)
                         }
                         .pickerStyle(SegmentedPickerStyle())
-                        .frame(maxWidth: 150)
-                        
-                        if gameMode == .vsAI {
-                            Picker("Difficulty", selection: $difficulty) {
-                                ForEach(AIDifficulty.allCases) {
-                                    Text($0.rawValue).tag($0)
-                                }
-                            }
-                            .pickerStyle(SegmentedPickerStyle())
-                        }
-                        
-                        Spacer()
+                        .frame(maxWidth: 120)
                     }
-                    .padding(.horizontal)
+                    
+                    Spacer()
                 }
+                .padding(.horizontal, 8)
+                .font(.caption)
                 
-                // Chess board - Dynamic sizing
-                VStack(spacing: 1) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 8), spacing: 1) {
+                // LARGE Chess board
+                VStack(spacing: 0) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 8), spacing: 0) {
                         ForEach(0..<64, id: \.self) { idx in
                             let row = idx / 8
                             let col = idx % 8
@@ -134,72 +132,68 @@ struct ContentView: View {
                     .aspectRatio(1, contentMode: .fit)
                     .border(Color.black, width: 3)
                 }
-                .padding(.horizontal, 12)
+                .padding(8)
                 
-                // Captured pieces display
-                VStack(spacing: 8) {
+                // Minimal captured pieces
+                VStack(spacing: 4) {
                     if !whiteCaptures.isEmpty {
-                        HStack(spacing: 4) {
-                            Text("Captured:")
-                                .font(.caption)
-                                .fontWeight(.semibold)
+                        HStack(spacing: 2) {
+                            Text("W:")
+                                .font(.caption2)
+                                .fontWeight(.bold)
                             ForEach(whiteCaptures, id: \.id) {
                                 Text(pieceSymbol($0))
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 14))
                             }
                             Spacer()
                         }
-                        .padding(8)
-                        .background(Color(UIColor.secondarySystemBackground))
-                        .cornerRadius(6)
+                        .padding(.horizontal, 8)
                     }
                     
                     if !blackCaptures.isEmpty {
-                        HStack(spacing: 4) {
-                            Text("Captured:")
-                                .font(.caption)
-                                .fontWeight(.semibold)
+                        HStack(spacing: 2) {
+                            Text("B:")
+                                .font(.caption2)
+                                .fontWeight(.bold)
                             ForEach(blackCaptures, id: \.id) {
                                 Text(pieceSymbol($0))
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 14))
                             }
                             Spacer()
                         }
-                        .padding(8)
-                        .background(Color(UIColor.secondarySystemBackground))
-                        .cornerRadius(6)
+                        .padding(.horizontal, 8)
                     }
                 }
-                .padding(.horizontal, 12)
                 
-                // Control buttons
-                HStack(spacing: 12) {
+                // Bottom controls - compact
+                HStack(spacing: 8) {
                     Button(action: { undoLastMove() }) {
-                        Text("↶ Undo")
+                        Text("Undo")
+                            .font(.caption)
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
-                            .padding(10)
+                            .padding(8)
                             .background(moveHistory.isEmpty ? Color.gray.opacity(0.5) : Color.blue)
                             .foregroundColor(.white)
-                            .cornerRadius(8)
+                            .cornerRadius(6)
                     }
                     .disabled(moveHistory.isEmpty)
                     
                     Button(action: { resetGame() }) {
-                        Text("🔄 Reset")
+                        Text("Reset")
+                            .font(.caption)
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
-                            .padding(10)
+                            .padding(8)
                             .background(Color.orange)
                             .foregroundColor(.white)
-                            .cornerRadius(8)
+                            .cornerRadius(6)
                     }
                 }
-                .padding(.horizontal, 12)
-                
-                Spacer()
+                .padding(.horizontal, 8)
+                .padding(.bottom, 4)
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, 4)
             
             // Promotion picker overlay
             if showPromotionPicker, let t = promotionTarget {
