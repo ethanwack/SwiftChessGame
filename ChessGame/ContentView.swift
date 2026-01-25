@@ -140,21 +140,26 @@ struct ContentView: View {
         let isValidMove = validMoves.contains(where: { $0 == (row, col) })
         
         return ZStack {
+            // Chess board square background
             Rectangle()
-                .fill(isLight ? Color.white : Color.gray)
+                .fill(isLight ? Color(red: 0.9, green: 0.9, blue: 0.9) : Color(red: 0.3, green: 0.7, blue: 0.3))
                 .border(isSelected ? Color.blue : Color.clear, width: 3)
             
+            // Piece display
             if let p = piece {
                 Text(pieceSymbol(p))
-                    .font(.system(size: 40))
+                    .font(.system(size: 35))
+                    .fontWeight(.bold)
             }
             
+            // Valid move indicator
             if isValidMove {
                 Circle()
-                    .fill(Color.green.opacity(0.3))
-                    .frame(width: 20, height: 20)
+                    .fill(Color.green.opacity(0.5))
+                    .frame(width: 16, height: 16)
             }
         }
+        .aspectRatio(1, contentMode: .fit)
         .onTapGesture {
             handleTap(row: row, col: col)
         }
