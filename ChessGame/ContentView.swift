@@ -55,129 +55,210 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // Main content
-            VStack(spacing: 15) {
-                // Game controls at top
-                VStack(spacing: 10) {
+            Color(UIColor.systemBackground).ignoresSafeArea()
+            
+            VStack(spacing: 12) {
+                // Top status bar
+                VStack(spacing: 8) {
                     HStack {
-                        clockView(color: .white, time: whiteTimeRemaining, isActive: currentTurn == .white)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("White")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Text(formatTime(whiteTimeRemaining))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(currentTurn == .white ? .white : .gray)
+                                .frame(width: 60, alignment: .leading)
+                        }
+                        .padding(8)
+                        .background(currentTurn == .white ? Color.black : Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(8)
+                        
                         Spacer()
+                        
                         Text(currentTurn == .white ? "White's Turn" : "Black's Turn")
                             .font(.headline)
+                            .fontWeight(.bold)
+                        
                         Spacer()
-                        clockView(color: .black, time: blackTimeRemaining, isActive: currentTurn == .black)
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Black")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Text(formatTime(blackTimeRemaining))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(currentTurn == .black ? .white : .gray)
+                                .frame(width: 60, alignment: .trailing)
+                        }
+                        .padding(8)
+                        .background(currentTurn == .black ? Color.black : Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(8)
                     }
-                    .padding()
+                    .padding(.horizontal)
                     
-                    HStack(spacing: 20) {
-                        Picker("", selection: $gameMode) {
+                    // Mode selector
+                    HStack(spacing: 12) {
+                        Picker("Mode", selection: $gameMode) {
                             Text("PvP").tag(GameMode.vsPlayer)
-                            Text("PvAI").tag(GameMode.vsAI)
+                            Text("vs AI").tag(GameMode.vsAI)
                         }
                         .pickerStyle(SegmentedPickerStyle())
+                        .frame(maxWidth: 150)
                         
                         if gameMode == .vsAI {
-                            Picker("", selection: $difficulty) {
+                            Picker("Difficulty", selection: $difficulty) {
                                 ForEach(AIDifficulty.allCases) {
                                     Text($0.rawValue).tag($0)
                                 }
                             }
                             .pickerStyle(SegmentedPickerStyle())
                         }
+                        
+                        Spacer()
                     }
                     .padding(.horizontal)
                 }
                 
-                // Chess board - main focus
-                VStack(spacing: 0) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(40), spacing: 0), count: 8), spacing: 0) {
+                // Chess board - Dynamic sizing
+                VStack(spacing: 1) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 1), count: 8), spacing: 1) {
                         ForEach(0..<64, id: \.self) { idx in
                             let row = idx / 8
                             let col = idx % 8
                             squareView(row: row, col: col)
-                                .frame(width: 40, height: 40)
                         }
                     }
-                    .frame(width: 320, height: 320)
-                    .border(Color.black, width: 2)
+                    .aspectRatio(1, contentMode: .fit)
+                    .border(Color.black, width: 3)
                 }
+                .padding(.horizontal, 12)
                 
-                // Captures display
-                VStack(spacing: 5) {
+                // Captured pieces display
+                VStack(spacing: 8) {
                     if !whiteCaptures.isEmpty {
-                        HStack {
-                            Text("White Captures:")
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 0) { 
-                                    ForEach(whiteCaptures, id: \.id) { 
-                                        Text(pieceSymbol($0))
-                                            .font(.system(size: 16))
-                                    } 
-                                }
+                        HStack(spacing: 4) {
+                            Text("Captured:")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            ForEach(whiteCaptures, id: \.id) {
+                                Text(pieceSymbol($0))
+                                    .font(.system(size: 18))
                             }
+                            Spacer()
                         }
-                        .font(.caption)
+                        .padding(8)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(6)
                     }
                     
                     if !blackCaptures.isEmpty {
-                        HStack {
-                            Text("Black Captures:")
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 0) { 
-                                    ForEach(blackCaptures, id: \.id) { 
-                                        Text(pieceSymbol($0))
-                                            .font(.system(size: 16))
-                                    } 
-                                }
+                        HStack(spacing: 4) {
+                            Text("Captured:")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            ForEach(blackCaptures, id: \.id) {
+                                Text(pieceSymbol($0))
+                                    .font(.system(size: 18))
                             }
+                            Spacer()
                         }
-                        .font(.caption)
+                        .padding(8)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(6)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 12)
                 
-                // Controls at bottom
-                HStack(spacing: 50) {
+                // Control buttons
+                HStack(spacing: 12) {
                     Button(action: { undoLastMove() }) {
-                        Text("Undo")
-                            .frame(minWidth: 80)
-                            .padding()
-                            .background(Color.blue)
+                        Text("↶ Undo")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(10)
+                            .background(moveHistory.isEmpty ? Color.gray.opacity(0.5) : Color.blue)
                             .foregroundColor(.white)
                             .cornerRadius(8)
                     }
                     .disabled(moveHistory.isEmpty)
                     
                     Button(action: { resetGame() }) {
-                        Text("Reset")
-                            .frame(minWidth: 80)
-                            .padding()
-                            .background(Color.red)
+                        Text("🔄 Reset")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(10)
+                            .background(Color.orange)
                             .foregroundColor(.white)
                             .cornerRadius(8)
                     }
                 }
+                .padding(.horizontal, 12)
                 
                 Spacer()
             }
+            .padding(.vertical, 12)
             
             // Promotion picker overlay
             if showPromotionPicker, let t = promotionTarget {
                 VStack {
                     Spacer()
-                    promotionPicker(for: t)
-                        .background(Color.white)
-                        .border(Color.black, width: 2)
+                    
+                    VStack(spacing: 16) {
+                        Text("Promote Pawn to:")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        
+                        HStack(spacing: 16) {
+                            ForEach([PieceType.queen, .rook, .bishop, .knight], id: \.self) { type in
+                                Button(action: {
+                                    if let index = board.pieces.firstIndex(where: { $0.id == t.id }) {
+                                        board.pieces[index].type = type
+                                    }
+                                    showPromotionPicker = false
+                                    promotionTarget = nil
+                                    endTurn()
+                                }) {
+                                    VStack(spacing: 4) {
+                                        Text(pieceSymbol(ChessPiece(type: type, color: t.color, position: (0,0))))
+                                            .font(.system(size: 36))
+                                        Text(type.rawValue.uppercased())
+                                            .font(.caption)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                                }
+                            }
+                        }
+                    }
+                    .padding(20)
+                    .background(Color(UIColor.systemBackground))
+                    .cornerRadius(12)
+                    .padding()
+                    
                     Spacer()
                 }
+                .background(Color.black.opacity(0.4))
+                .ignoresSafeArea()
             }
         }
         .onAppear {
             startTimer(for: currentTurn)
         }
         .alert(isPresented: $showAlert) {
-            Alert(title: Text(alertMessage))
+            Alert(title: Text("Game Info"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
+    }
+    
+    private func formatTime(_ seconds: TimeInterval) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%02d:%02d", mins, secs)
     }
 
     // MARK: - UI Components
@@ -198,31 +279,37 @@ struct ContentView: View {
         let isSelected = selectedPiece != nil && selectedPiece!.position == (row, col)
         let isValidMove = validMoves.contains(where: { $0 == (row, col) })
         
+        // Traditional chess colors
+        let lightColor = Color(red: 0.96, green: 0.94, blue: 0.87) // Beige
+        let darkColor = Color(red: 0.54, green: 0.42, blue: 0.32)  // Brown
+        
         return ZStack(alignment: .center) {
-            // Chess board square background
+            // Square background
             Rectangle()
-                .fill(isLight ? Color(red: 0.95, green: 0.95, blue: 0.95) : Color(red: 0.2, green: 0.6, blue: 0.2))
+                .fill(isLight ? lightColor : darkColor)
             
             // Selection highlight
             if isSelected {
                 Rectangle()
-                    .stroke(Color.blue, lineWidth: 2)
+                    .stroke(Color.yellow, lineWidth: 2)
             }
             
             // Valid move indicator
             if isValidMove {
                 Circle()
-                    .fill(Color.yellow.opacity(0.6))
-                    .frame(width: 10, height: 10)
+                    .fill(Color(red: 1, green: 0.84, blue: 0))  // Gold
+                    .opacity(0.7)
+                    .frame(width: 12, height: 12)
             }
             
             // Piece display
             if let p = piece {
                 Text(pieceSymbol(p))
-                    .font(.system(size: 30))
-                    .fontWeight(.bold)
+                    .font(.system(size: 24, weight: .bold))
+                    .lineLimit(1)
             }
         }
+        .aspectRatio(1, contentMode: .fit)
         .onTapGesture {
             handleTap(row: row, col: col)
         }
