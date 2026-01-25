@@ -54,65 +54,124 @@ struct ContentView: View {
     @State private var alertMessage = ""
 
     var body: some View {
-        VStack(spacing: 10) {
-            Picker("Mode", selection: $gameMode) {
-                Text("PvP").tag(GameMode.vsPlayer)
-                Text("PvAI").tag(GameMode.vsAI)
-            }.pickerStyle(SegmentedPickerStyle())
-
-            if gameMode == .vsAI {
-                Picker("AI Difficulty", selection: $difficulty) {
-                    ForEach(AIDifficulty.allCases) {
-                        Text($0.rawValue).tag($0)
+        ZStack {
+            // Main content
+            VStack(spacing: 15) {
+                // Game controls at top
+                VStack(spacing: 10) {
+                    HStack {
+                        clockView(color: .white, time: whiteTimeRemaining, isActive: currentTurn == .white)
+                        Spacer()
+                        Text(currentTurn == .white ? "White's Turn" : "Black's Turn")
+                            .font(.headline)
+                        Spacer()
+                        clockView(color: .black, time: blackTimeRemaining, isActive: currentTurn == .black)
+                    }
+                    .padding()
+                    
+                    HStack(spacing: 20) {
+                        Picker("", selection: $gameMode) {
+                            Text("PvP").tag(GameMode.vsPlayer)
+                            Text("PvAI").tag(GameMode.vsAI)
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        
+                        if gameMode == .vsAI {
+                            Picker("", selection: $difficulty) {
+                                ForEach(AIDifficulty.allCases) {
+                                    Text($0.rawValue).tag($0)
+                                }
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                // Chess board - main focus
+                VStack(spacing: 0) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(40), spacing: 0), count: 8), spacing: 0) {
+                        ForEach(0..<64, id: \.self) { idx in
+                            let row = idx / 8
+                            let col = idx % 8
+                            squareView(row: row, col: col)
+                                .frame(width: 40, height: 40)
+                        }
+                    }
+                    .frame(width: 320, height: 320)
+                    .border(Color.black, width: 2)
+                }
+                
+                // Captures display
+                VStack(spacing: 5) {
+                    if !whiteCaptures.isEmpty {
+                        HStack {
+                            Text("White Captures:")
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 0) { 
+                                    ForEach(whiteCaptures, id: \.id) { 
+                                        Text(pieceSymbol($0))
+                                            .font(.system(size: 16))
+                                    } 
+                                }
+                            }
+                        }
+                        .font(.caption)
+                    }
+                    
+                    if !blackCaptures.isEmpty {
+                        HStack {
+                            Text("Black Captures:")
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 0) { 
+                                    ForEach(blackCaptures, id: \.id) { 
+                                        Text(pieceSymbol($0))
+                                            .font(.system(size: 16))
+                                    } 
+                                }
+                            }
+                        }
+                        .font(.caption)
                     }
                 }
-                .pickerStyle(SegmentedPickerStyle())
-
-                Picker("AI Plays As", selection: $aiPlaysAs) {
-                    Text("White").tag(PieceColor.white)
-                    Text("Black").tag(PieceColor.black)
-                }
-                .pickerStyle(SegmentedPickerStyle())
-            }
-
-            HStack {
-                clockView(color: .white, time: whiteTimeRemaining, isActive: currentTurn == .white)
-                Spacer()
-                clockView(color: .black, time: blackTimeRemaining, isActive: currentTurn == .black)
-            }
-            .padding(.horizontal)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack { ForEach(whiteCaptures, id: \.id) { Text(pieceSymbol($0)) } }
-            }
-            .frame(height: 30)
-
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 0) {
-                ForEach(0..<8, id: \.self) { r in
-                    ForEach(0..<8, id: \.self) { c in
-                        squareView(row: r, col: c)
+                .padding(.horizontal)
+                
+                // Controls at bottom
+                HStack(spacing: 50) {
+                    Button(action: { undoLastMove() }) {
+                        Text("Undo")
+                            .frame(minWidth: 80)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
                     }
-                }
-            }
-            .aspectRatio(1, contentMode: .fit)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack { ForEach(blackCaptures, id: \.id) { Text(pieceSymbol($0)) } }
-            }
-            .frame(height: 30)
-
-            if showPromotionPicker, let t = promotionTarget {
-                promotionPicker(for: t)
-            }
-
-            HStack(spacing: 50) {
-                Button("Undo") { undoLastMove() }
                     .disabled(moveHistory.isEmpty)
-                Button("Reset") { resetGame() }
+                    
+                    Button(action: { resetGame() }) {
+                        Text("Reset")
+                            .frame(minWidth: 80)
+                            .padding()
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                }
+                
+                Spacer()
+            }
+            
+            // Promotion picker overlay
+            if showPromotionPicker, let t = promotionTarget {
+                VStack {
+                    Spacer()
+                    promotionPicker(for: t)
+                        .background(Color.white)
+                        .border(Color.black, width: 2)
+                    Spacer()
+                }
             }
         }
-        .padding()
-        .disabled(showPromotionPicker)
         .onAppear {
             startTimer(for: currentTurn)
         }
@@ -139,27 +198,31 @@ struct ContentView: View {
         let isSelected = selectedPiece != nil && selectedPiece!.position == (row, col)
         let isValidMove = validMoves.contains(where: { $0 == (row, col) })
         
-        return ZStack {
+        return ZStack(alignment: .center) {
             // Chess board square background
             Rectangle()
-                .fill(isLight ? Color(red: 0.9, green: 0.9, blue: 0.9) : Color(red: 0.3, green: 0.7, blue: 0.3))
-                .border(isSelected ? Color.blue : Color.clear, width: 3)
+                .fill(isLight ? Color(red: 0.95, green: 0.95, blue: 0.95) : Color(red: 0.2, green: 0.6, blue: 0.2))
             
-            // Piece display
-            if let p = piece {
-                Text(pieceSymbol(p))
-                    .font(.system(size: 35))
-                    .fontWeight(.bold)
+            // Selection highlight
+            if isSelected {
+                Rectangle()
+                    .stroke(Color.blue, lineWidth: 2)
             }
             
             // Valid move indicator
             if isValidMove {
                 Circle()
-                    .fill(Color.green.opacity(0.5))
-                    .frame(width: 16, height: 16)
+                    .fill(Color.yellow.opacity(0.6))
+                    .frame(width: 10, height: 10)
+            }
+            
+            // Piece display
+            if let p = piece {
+                Text(pieceSymbol(p))
+                    .font(.system(size: 30))
+                    .fontWeight(.bold)
             }
         }
-        .aspectRatio(1, contentMode: .fit)
         .onTapGesture {
             handleTap(row: row, col: col)
         }
