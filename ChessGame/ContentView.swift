@@ -1,31 +1,5 @@
 import SwiftUI
 
-// MARK: - Zobrist Hashing & Transposition Table
-struct Zobrist {
-    static let table = (0..<2).map { _ in
-        (0..<6).map { _ in
-            (0..<64).map { _ in UInt64.random(in: UInt64.min...UInt64.max) }
-        }
-    }
-    static func hash(board: ChessBoard) -> UInt64 {
-        var h: UInt64 = 0
-        for piece in board.pieces {
-            let c = piece.color == .white ? 0 : 1
-            let t = ["king","queen","rook","bishop","knight","pawn"]
-                .firstIndex(of: piece.type.rawValue)!
-            let sq = piece.position.0 * 8 + piece.position.1
-            h ^= table[c][t][sq]
-        }
-        return h
-    }
-}
-
-class TranspositionTable {
-    private var data = [UInt64: Int]()
-    func get(_ h: UInt64) -> Int? { data[h] }
-    func set(_ h: UInt64, _ score: Int) { data[h] = score }
-}
-
 // MARK: - ContentView
 
 struct ContentView: View {
@@ -129,10 +103,12 @@ struct ContentView: View {
                             squareView(row: row, col: col)
                         }
                     }
-                    .aspectRatio(1, contentMode: .fit)
-                    .border(Color.black, width: 3)
                 }
+                .frame(maxWidth: .infinity)
+                .frame(maxHeight: .infinity)
                 .padding(4)
+                .background(Color.black)
+
                 
                 // Minimal captured pieces
                 VStack(spacing: 4) {
@@ -304,7 +280,7 @@ struct ContentView: View {
                     .minimumScaleFactor(0.5)
             }
         }
-        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onTapGesture {
             handleTap(row: row, col: col)
         }
@@ -423,7 +399,6 @@ struct ContentView: View {
 
     func makeAIMove() {
         let aiColor = aiPlaysAs
-        let table = TranspositionTable()
         let allMoves = board.pieces.filter { $0.color == aiColor }
             .flatMap { p in calculateValidMoves(for: p, on: board).map { (p, $0) } }
 
@@ -432,20 +407,19 @@ struct ContentView: View {
         }
 
         var bestScore = Int.min
-        var alpha = Int.min
-        var beta = Int.max
         var bestMove: (ChessPiece, (Int, Int))?
 
-        for (piece, dest) in ordered {
+        for (piece, dest) in ordered.prefix(20) {  // Limit search breadth
             let test = board.deepCopy()
             if let tp = test.piece(at: piece.position) {
                 test.applyMove(piece: tp, to: dest)
                 if !isKingInCheck(aiColor, on: test) {
-                    let score = minimax(board: test, depth: difficulty.depth, maximizing: false, color: aiColor, alpha: &alpha, beta: &beta, table: table)
+                    var alpha = Int.min
+                    var beta = Int.max
+                    let score = minimax(board: test, depth: difficulty.depth, maximizing: false, color: aiColor, alpha: &alpha, beta: &beta)
                     if score > bestScore {
                         bestScore = score
                         bestMove = (piece, dest)
-                        alpha = max(alpha, score)
                     }
                 }
             }
@@ -461,14 +435,10 @@ struct ContentView: View {
     }
 
     func minimax(board: ChessBoard, depth: Int, maximizing: Bool,
-                 color: PieceColor, alpha: inout Int, beta: inout Int, table: TranspositionTable
+                 color: PieceColor, alpha: inout Int, beta: inout Int
     ) -> Int {
-        let h = Zobrist.hash(board: board)
-        if let c = table.get(h) { return c }
         if depth == 0 {
-            let eval = evaluate(board: board, for: color)
-            table.set(h, eval)
-            return eval
+            return evaluate(board: board, for: color)
         }
 
         var best = maximizing ? Int.min : Int.max
@@ -476,12 +446,14 @@ struct ContentView: View {
             .filter { $0.color == (maximizing ? color : opposite(color)) }
             .flatMap { p in calculateValidMoves(for: p, on: board).map { (p, $0) } }
 
-        for (p, m) in moves {
+        for (p, m) in moves.prefix(10) {  // Limit breadth at deeper levels
             let copy = board.deepCopy()
             if let cp = copy.piece(at: p.position) {
                 copy.applyMove(piece: cp, to: m)
                 if !isKingInCheck(maximizing ? color : opposite(color), on: copy) {
-                    let score = minimax(board: copy, depth: depth - 1, maximizing: !maximizing, color: color, alpha: &alpha, beta: &beta, table: table)
+                    var localAlpha = alpha
+                    var localBeta = beta
+                    let score = minimax(board: copy, depth: depth - 1, maximizing: !maximizing, color: color, alpha: &localAlpha, beta: &localBeta)
                     if maximizing {
                         best = max(best, score)
                         alpha = max(alpha, best)
@@ -494,7 +466,6 @@ struct ContentView: View {
             }
         }
 
-        table.set(h, best)
         return best
     }
 
